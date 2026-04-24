@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Market Gauntlet: V17 Forensic Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#004ac6",
+                      "secondary": "#059669",
+                      "error": "#dc2626",
+                      "background": "#f8f9ff"
+              },
+              "fontFamily": {
+                      "body-main": ["Inter"],
+                      "data-leaderboard": ["Space Grotesk"]
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        .reveal-anim { animation: scanline 0.6s ease-out; }
+        @keyframes scanline {
+            0% { background-color: #059669; color: white; }
+            100% { background-color: white; }
+        }
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .custom-checkbox:checked { background-color: #a855f7; border-color: #a855f7; }
+        .locked-row { opacity: 0.6; background-color: #f1f5f9; }
+        .bankruptcy-alert { animation: bankruptcy-pulse 1s linear infinite; color: #dc2626 !important; font-weight: 900; }
+        @keyframes bankruptcy-pulse { 50% { opacity: 0.5; } }
+        
+        .btn-action {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.1em; transition: all 0.2s;
+        }
+        .btn-action:active { transform: scale(0.95); }
+
+        .leader-row { background: linear-gradient(to right, #fffbeb, #ffffff); border-left: 6px solid #fbbf24 !important; }
+    </style>
+</head>
+<body class="bg-[#f8f9ff] text-slate-900 font-body-main antialiased min-h-screen flex flex-col">
+
+<nav class="flex justify-between items-center w-full px-8 h-16 sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <div class="flex items-center gap-8 h-full">
+        <h1 class="text-lg font-black tracking-tighter uppercase">Market Gauntlet</h1>
+        <div class="hidden md:flex items-center gap-1 h-full">
+            <button id="tab-period6" onclick="switchPeriod('period6')" class="px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-primary text-primary bg-blue-50/50">Period 6</button>
+            <button id="tab-period8" onclick="switchPeriod('period8')" class="px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-transparent text-slate-500 hover:text-primary">Period 8</button>
+            <button id="tab-archives" onclick="showArchives()" class="px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-transparent text-slate-500 hover:text-primary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Audit History
+            </button>
+        </div>
+    </div>
+    <div class="flex items-center gap-6">
+        <button onclick="exportHistory()" class="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-[10px] uppercase tracking-widest transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Export Ledger
+        </button>
+        <button onclick="resetCurrentPeriod()" class="flex items-center gap-2 text-error/50 hover:text-error font-bold text-[10px] uppercase tracking-widest transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Wipe
+        </button>
+    </div>
+</nav>
+
+<main id="main-terminal" class="flex-1 p-6 overflow-hidden flex flex-col">
+    <div class="max-w-[1600px] mx-auto w-full flex flex-col h-full gap-6">
+        
+        <header class="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-4">
+                <p id="roundDisplay" class="font-black text-primary tracking-[0.1em] uppercase text-sm border-r pr-4 border-slate-200">Year 1 of 10</p>
+                <div class="flex gap-2">
+                    <button onclick="addTeam()" class="btn-action bg-white border border-primary text-primary hover:bg-blue-50">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                        Add Firm
+                    </button>
+                    <button onclick="addAIFirm()" class="btn-action bg-slate-100 text-slate-700 hover:bg-slate-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M21 16.5L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3 16.5V7.5L11.43 2.18C11.79 2.06 12 2 12 2C12.21 2 12.57 2.18L21 7.5V16.5Z"/></svg>
+                        Add AI Firm
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="forecastBtn" onclick="pullForecast()" class="btn-action bg-amber-500 text-white hover:bg-amber-600">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                    Intercept Rumor
+                </button>
+                <button id="applyBtn" onclick="executeHistoricalYear()" disabled class="btn-action bg-secondary text-white hover:bg-green-800 disabled:opacity-20">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3l-2 3h2l-2 4h2l-4 7v-5H7l2-3H7l2-4H7l4-7z"/></svg>
+                    Close Year
+                </button>
+                <button id="taxBtn" onclick="triggerTaxDay()" style="display:none;" class="btn-action bg-error text-white hover:bg-red-800 animate-pulse">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    Final Audit
+                </button>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+            <aside id="eventBox" class="w-full lg:w-80 bg-white rounded-2xl border-2 border-primary p-6 shadow-lg transition-all duration-500 overflow-y-auto shrink-0 flex flex-col text-center lg:text-left">
+                <div id="fLabel" class="text-primary font-black text-[9px] tracking-[0.3em] uppercase mb-4 opacity-70">Intelligence Feed</div>
+                <div id="eYear" class="font-data-leaderboard text-6xl text-slate-900 font-black mb-2 tracking-tighter" style="display:none;"></div>
+                <h3 id="eTitle" class="text-xl font-bold text-slate-900 mb-3 tracking-tight">System Ready</h3>
+                <p id="eDesc" class="text-slate-500 text-sm italic leading-relaxed font-medium">
+                    Please add firms to begin.
+                </p>
+            </aside>
+
+            <section class="flex-1 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-y-auto">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <thead class="bg-slate-50 border-b border-slate-200 font-bold text-[9px] text-slate-400 uppercase tracking-widest sticky top-0 z-10">
+                        <tr>
+                            <th class="p-4 w-1/4">Firm Name</th>
+                            <th class="p-4 text-right w-44 pr-8">Balance</th>
+                            <th class="p-2 text-center w-16">Idx%</th>
+                            <th class="p-2 text-center w-16">Tch%</th>
+                            <th class="p-2 text-center w-16">REIT%</th>
+                            <th class="p-2 text-center w-16">Bnd%</th>
+                            <th class="p-2 text-center w-16">Cry%</th>
+                            <th class="p-2 text-center w-12">Roth</th>
+                            <th class="p-2 text-center w-28">Ready</th>
+                            <th class="p-2 text-center w-12">Del</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teamBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </section>
+        </div>
+    </div>
+</main>
+
+<main id="archive-view" class="hidden flex-1 p-8 overflow-y-auto bg-slate-100">
+    <div class="max-w-7xl mx-auto space-y-8">
+        <h2 class="text-4xl font-black text-slate-900 tracking-tighter uppercase border-b-4 border-primary pb-4 inline-block">Audit Archives</h2>
+        <div id="archive-list" class="grid grid-cols-1 gap-8">
+            </div>
+    </div>
+</main>
+
+<script>
+    // Logic from V16 maintained
+    const marketPool = {
+        bull: [
+            { year: 1980, name: "Inflation Spike", mods: { idx: 1.25, tch: 1.35, reit: 0.85, bnd: 0.90, cry: 1.30 }, forecast: "Rumor: Fed threatens interest rate hikes.", history: "Rates soared, but tech outpaced inflation." },
+            { year: 1995, name: "Tech Ascendancy", mods: { idx: 1.37, tch: 1.50, reit: 1.15, bnd: 1.15, cry: 1.80 }, forecast: "Rumor: World Wide Web goes mainstream.", history: "The internet boom begins." },
+            { year: 1999, name: "Dot-Com Peak", mods: { idx: 1.21, tch: 1.85, reit: 0.95, bnd: 0.99, cry: 4.50 }, forecast: "Rumor: Zero-revenue companies are doubling.", history: "Dot-com euphoria reached unsustainable heights." },
+            { year: 2013, name: "Market Recovery", mods: { idx: 1.32, tch: 1.38, reit: 1.25, bnd: 0.98, cry: 2.00 }, forecast: "Rumor: Quantitative easing continues.", history: "Post-recession rally." },
+            { year: 2020, name: "Stimulus Surge", mods: { idx: 1.18, tch: 1.43, reit: 0.95, bnd: 1.11, cry: 3.50 }, forecast: "Rumor: Global lockdowns are active.", history: "Gov stimulus drives tech shifts." },
+            { year: 2023, name: "AI Renaissance", mods: { idx: 1.24, tch: 1.53, reit: 1.10, bnd: 1.04, cry: 2.50 }, forecast: "Rumor: Breakthroughs in LLMs.", history: "AI breakthroughs ignite tech run." },
+            { year: 2017, name: "Corporate Growth", mods: { idx: 1.21, tch: 1.30, reit: 1.05, bnd: 1.02, cry: 1.80 }, forecast: "Rumor: Major tax cuts expected.", history: "Strong corporate earnings." }
+        ],
+        bear: [
+            { year: 1929, name: "The Great Crash", mods: { idx: 0.88, tch: 0.80, reit: 0.85, bnd: 1.04, cry: 0.10 }, forecast: "Rumor: Steel production slowing.", history: "The start of the Depression." },
+            { year: 1974, name: "Stagflation Crisis", mods: { idx: 0.73, tch: 0.65, reit: 0.90, bnd: 1.02, cry: 0.40 }, forecast: "Rumor: Oil embargo expected.", history: "Oil prices skyrocket." },
+            { year: 2001, name: "Dot-Com Burst", mods: { idx: 0.88, tch: 0.60, reit: 1.12, bnd: 1.08, cry: 0.05 }, forecast: "Rumor: PC sales hitting a wall.", history: "Speculative assets wiped out." },
+            { year: 2008, name: "Financial Crisis", mods: { idx: 0.62, tch: 0.59, reit: 0.50, bnd: 1.14, cry: 0.15 }, forecast: "Rumor: Mortgage defaults rising.", history: "Housing collapse triggers bank failure." },
+            { year: 2022, name: "Inflation Bite", mods: { idx: 0.81, tch: 0.67, reit: 0.75, bnd: 0.87, cry: 0.35 }, forecast: "Rumor: Pandemic stimulus ending.", history: "Rate hikes hit all asset classes." }
+        ],
+        neutral: [
+            { year: 2011, name: "Sideways Grind", mods: { idx: 1.02, tch: 1.04, reit: 1.08, bnd: 1.05, cry: 0.90 }, forecast: "Rumor: Eurozone debt gridlock.", history: "Market flat." },
+            { year: 2015, name: "Energy Slump", mods: { idx: 1.01, tch: 1.06, reit: 1.02, bnd: 1.01, cry: 0.80 }, forecast: "Rumor: Oil supply glut.", history: "Industrial growth stalled." }
+        ]
+    };
+
+    let gameState = {
+        'period6': { teams: [], year: 1, completed: false, pendingEvent: null, history: [], marketDeck: [] },
+        'period8': { teams: [], year: 1, completed: false, pendingEvent: null, history: [] , marketDeck: [] }
+    };
+    let globalArchives = [];
+    let currentPeriod = 'period6';
+
+    function initializeMarketDeck(s) {
+        const bullCount = Math.random() > 0.5 ? 7 : 6;
+        const bearCount = (bullCount === 7) ? 2 : 3;
+        let deck = [
+            ...marketPool.bull.sort(() => Math.random() - 0.5).slice(0, bullCount),
+            ...marketPool.bear.sort(() => Math.random() - 0.5).slice(0, bearCount),
+            ...marketPool.neutral.sort(() => Math.random() - 0.5).slice(0, 1)
+        ].sort(() => Math.random() - 0.5);
+        const bIdx = deck.findIndex(y => marketPool.bear.some(by => by.year === y.year));
+        const tIdx = 6 + Math.floor(Math.random() * 4);
+        [deck[bIdx], deck[tIdx]] = [deck[tIdx], deck[bIdx]];
+        s.marketDeck = deck;
+    }
+
+    function triggerTaxDay() {
+        let s = gameState[currentPeriod];
+        s.teams.forEach(t => { if (t.vault === 'trad') t.balance *= 0.75; t.bankrupt = t.balance < 1000; });
+        s.completed = true;
+        
+        // Detailed Snapshot for Archive
+        globalArchives.unshift({
+            date: new Date().toLocaleString(),
+            period: currentPeriod,
+            cycle: s.marketDeck.map(y => y.year),
+            firms: JSON.parse(JSON.stringify(s.teams)),
+            bulls: s.marketDeck.filter(y => marketPool.bull.some(b => b.year === y.year)).length,
+            bears: s.marketDeck.filter(y => marketPool.bear.some(b => b.year === y.year)).length
+        });
+        saveData(); syncUI();
+    }
+
+    function renderArchives() {
+        const c = document.getElementById('archive-list');
+        c.innerHTML = globalArchives.length ? '' : '<p class="italic text-slate-400 p-8">No audit history found.</p>';
+        
+        globalArchives.forEach(a => {
+            c.innerHTML += `
+            <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl overflow-hidden relative">
+                <div class="flex flex-col md:flex-row justify-between gap-6 border-b pb-6 mb-6">
+                    <div>
+                        <span class="bg-primary text-white font-black px-3 py-1 rounded text-[10px] uppercase tracking-widest">${a.period}</span>
+                        <h3 class="text-2xl font-black text-slate-900 mt-2">${a.date}</h3>
+                        <p class="text-xs font-bold text-slate-500 uppercase mt-1">Timeline: ${a.cycle.join(' → ')}</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-center min-w-[80px]">
+                            <div class="text-[10px] font-black text-emerald-600 uppercase">Bulls</div>
+                            <div class="text-2xl font-black text-emerald-700">${a.bulls}</div>
+                        </div>
+                        <div class="bg-red-50 border border-red-100 p-3 rounded-xl text-center min-w-[80px]">
+                            <div class="text-[10px] font-black text-red-600 uppercase">Bears</div>
+                            <div class="text-2xl font-black text-red-700">${a.bears}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <table class="w-full text-left">
+                    <thead class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <tr>
+                            <th class="pb-3">Firm Name</th>
+                            <th class="pb-3">Vault</th>
+                            <th class="pb-3">Solvency</th>
+                            <th class="pb-3 text-right">Final Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        ${a.firms.sort((x,y)=>y.balance-x.balance).map((f, i) => `
+                        <tr>
+                            <td class="py-3 font-black text-slate-900">${i === 0 ? '👑 ' : ''}${f.name}</td>
+                            <td class="py-3 text-xs font-bold uppercase ${f.vault==='roth'?'text-purple-600':'text-slate-500'}">${f.vault}</td>
+                            <td class="py-3 text-xs font-bold uppercase ${f.bankrupt?'text-error':'text-secondary'}">${f.bankrupt?'Bankrupt':'Solvent'}</td>
+                            <td class="py-3 text-right font-data-leaderboard text-xl ${f.bankrupt?'text-error':'text-emerald-700'}">$${Math.round(f.balance).toLocaleString()}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        });
+    }
+
+    // [All standard Logic and UI functions kept same from V16/V15]
+    function addTeam() { let s = gameState[currentPeriod]; if (s.year > 1) return; if (s.marketDeck.length === 0) initializeMarketDeck(s); const name = prompt("Enter Firm Name:"); if (name) { s.teams.push({ name, balance: 100000, lastBalance: 100000, vault: 'trad', alloc: { idx: 20, tch: 20, reit: 20, bnd: 20, cry: 20 }, ready: false }); saveData(); render(); } }
+    function addAIFirm() { let s = gameState[currentPeriod]; if (s.year > 1) return; if (s.marketDeck.length === 0) initializeMarketDeck(s); const names = ["Titan Capital", "Nexus Wealth", "Quant Logic"]; const name = names[Math.floor(Math.random()*names.length)] + " " + (s.teams.length + 1); const isRoth = Math.random() > 0.5; s.teams.push({ name, balance: isRoth?80000:100000, lastBalance: isRoth?80000:100000, vault: isRoth?'roth':'trad', alloc: generateRandomAlloc(), ready: true }); saveData(); render(); }
+    function generateRandomAlloc() { let p = [0, 100]; for (let i = 0; i < 4; i++) p.push(Math.floor(Math.random() * 101)); p.sort((a, b) => a - b); let a = []; for (let i = 0; i < 5; i++) a.push(p[i+1] - p[i]); return { idx: a[0], tch: a[1], reit: a[2], bnd: a[3], cry: a[4] }; }
+    function syncAlloc(i, f, v) { gameState[currentPeriod].teams[i].alloc[f] = parseInt(v) || 0; saveData(); }
+    function toggleReady(i) { let t = gameState[currentPeriod].teams[i]; if (!t.ready && (Object.values(t.alloc).reduce((a, b) => a + b, 0) !== 100)) { alert("Must total 100%"); return; } t.ready = !t.ready; saveData(); render(); }
+    function pullForecast() { let s = gameState[currentPeriod]; if (s.year > 10 || s.teams.length === 0) return; s.pendingEvent = s.marketDeck[s.year - 1]; saveData(); syncUI(); }
+    function executeHistoricalYear() { let s = gameState[currentPeriod]; const ev = s.pendingEvent; s.history.push({ year_num: s.year, h_year: ev.year, h_name: ev.name, snap: s.teams.map(t => ({ name: t.name, balance: Math.round(t.balance) })) }); s.teams.forEach(t => { t.lastBalance = t.balance; const b = t.balance; const a = t.alloc; t.balance = (b * (a.idx/100) * ev.mods.idx) + (b * (a.tch/100) * ev.mods.tch) + (b * (a.reit/100) * ev.mods.reit) + (b * (a.bnd/100) * ev.mods.bnd) + (b * (a.cry/100) * ev.mods.cry); t.ready = false; }); s.year++; s.pendingEvent = null; saveData(); syncUI(); const box = document.getElementById('eventBox'); box.classList.add('reveal-anim'); setTimeout(() => box.classList.remove('reveal-anim'), 600); }
+    function switchPeriod(p) { currentPeriod = p; document.getElementById('main-terminal').classList.remove('hidden'); document.getElementById('archive-view').classList.add('hidden'); ['period6', 'period8', 'archives'].forEach(id => { const el = document.getElementById(`tab-${id}`); if(el) el.className = "px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-transparent text-slate-500 hover:text-primary"; }); const activeEl = document.getElementById(`tab-${p}`); if(activeEl) activeEl.className = "px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-primary text-primary bg-blue-50/50"; syncUI(); }
+    function showArchives() { document.getElementById('main-terminal').classList.add('hidden'); document.getElementById('archive-view').classList.remove('hidden'); ['period6', 'period8', 'archives'].forEach(id => { const el = document.getElementById(`tab-${id}`); if(el) el.className = "px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-transparent text-slate-500 hover:text-primary"; }); document.getElementById('tab-archives').className = "px-4 py-5 font-bold text-[11px] uppercase tracking-widest border-b-4 border-primary text-primary bg-blue-50/50"; renderArchives(); }
+    function loadData() { const s = localStorage.getItem('Gauntlet_V17_State'); const a = localStorage.getItem('Gauntlet_V17_Archives'); if (s) gameState = JSON.parse(s); if (a) globalArchives = JSON.parse(a); switchPeriod(currentPeriod); }
+    function saveData() { localStorage.setItem('Gauntlet_V17_State', JSON.stringify(gameState)); localStorage.setItem('Gauntlet_V17_Archives', JSON.stringify(globalArchives)); }
+    function resetCurrentPeriod() { if (confirm("Wipe period?")) { gameState[currentPeriod] = { teams: [], year: 1, completed: false, pendingEvent: null, history: [], marketDeck: [] }; saveData(); syncUI(); location.reload(); } }
+    function removeTeam(i) { if (confirm("Purge firm?")) { gameState[currentPeriod].teams.splice(i, 1); saveData(); render(); } }
+    function exportHistory() { let s = gameState[currentPeriod]; if (!s.history.length) return; let csv = "Firm,Vault,Solvent?,Start,Y1,Y2,Y3,Y4,Y5,Y6,Y7,Y8,Y9,Y10\n"; s.teams.forEach(t => { let row = `${t.name},${t.vault},${t.bankrupt?'No':'Yes'},${t.vault==='roth'?80000:100000}`; s.history.forEach(h => { let tm = h.snap.find(sn => sn.name === t.name); row += `,${tm?tm.balance:''}`; }); row += `,${Math.round(t.balance)}\n`; csv += row; }); const blob = new Blob([csv], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Gauntlet_Ledger.csv`; a.click(); }
+
+    function syncUI() {
+        let s = gameState[currentPeriod]; const fL = document.getElementById('fLabel'); const eB = document.getElementById('eventBox');
+        if (s.year > 10) { document.getElementById('roundDisplay').innerText = s.completed ? "AUDIT CONCLUDED" : "FISCAL CYCLE COMPLETE"; document.getElementById('forecastBtn').style.display = 'none'; document.getElementById('applyBtn').style.display = 'none'; document.getElementById('taxBtn').style.display = s.completed ? 'none' : 'flex'; }
+        else { document.getElementById('roundDisplay').innerHTML = `YEAR ${s.year} OF 10`; document.getElementById('forecastBtn').style.display = 'flex'; document.getElementById('applyBtn').style.display = 'flex'; document.getElementById('taxBtn').style.display = 'none'; }
+        if (s.pendingEvent) { fL.innerText = "MARKET RUMOR"; document.getElementById('eYear').style.display = "none"; document.getElementById('eTitle').innerText = `Year ${s.year} Outlook`; document.getElementById('eDesc').innerText = s.pendingEvent.forecast; eB.style.borderColor = "#f59e0b"; document.getElementById('forecastBtn').disabled = true; document.getElementById('applyBtn').disabled = false; }
+        else if (s.history.length > 0) { const last = s.history[s.history.length - 1]; fL.innerText = "HISTORICAL ANALYSIS"; document.getElementById('eYear').style.display = "block"; document.getElementById('eYear').innerText = last.h_year; document.getElementById('eTitle').innerText = last.h_name; const fullEv = [...marketPool.bull, ...marketPool.bear, ...marketPool.neutral].find(y => y.year === last.h_year); document.getElementById('eDesc').innerText = fullEv ? fullEv.history : "Processed."; eB.style.borderColor = "#059669"; document.getElementById('forecastBtn').disabled = false; document.getElementById('applyBtn').disabled = true; }
+        else if (s.year === 1) { fL.innerText = "TERMINAL ONLINE"; document.getElementById('eYear').style.display = "none"; document.getElementById('eTitle').innerText = "Command Idle"; document.getElementById('eDesc').innerText = "Clients connected. Awaiting start."; eB.style.borderColor = "#004ac6"; }
+        render();
+    }
+
+    function render() {
+        let s = gameState[currentPeriod]; const b = document.getElementById('teamBody'); b.innerHTML = '';
+        let sorted = [...s.teams].sort((x,y) => y.balance - x.balance);
+        sorted.forEach((t) => {
+            let rIdx = gameState[currentPeriod].teams.indexOf(t);
+            let dis = (s.pendingEvent === null || s.year > 10 || s.completed || t.ready);
+            let inCls = `w-14 border-slate-200 rounded-lg text-center font-bold text-sm ${t.ready?'bg-slate-100':'bg-white'}`;
+            let isBK = t.balance < 1000;
+            let index = sorted.indexOf(t);
+            let isLeader = (index === 0 && s.teams.length > 0);
+            let diff = t.balance - t.lastBalance;
+            let badge = (s.year > 1) ? (diff >= 0 ? `<span class="text-[9px] text-emerald-600 font-black">▲ $${Math.round(diff).toLocaleString()}</span>` : `<span class="text-[9px] text-red-600 font-black">▼ $${Math.abs(Math.round(diff)).toLocaleString()}</span>`) : '';
+            b.innerHTML += `<tr class="border-b border-slate-100 ${t.ready ? 'locked-row' : ''} ${isLeader ? 'leader-row' : ''}">
+                <td class="p-4 font-black text-slate-900 truncate">${isLeader ? '👑 ' : ''}${t.name}</td>
+                <td class="p-4 text-right pr-8"><div class="flex flex-col"><span class="font-data-leaderboard text-2xl ${isBK?'bankruptcy-alert':'text-emerald-700'}">$${Math.round(t.balance).toLocaleString()}</span>${badge}</div></td>
+                <td class="p-1 text-center"><input type="number" value="${t.alloc.idx}" oninput="syncAlloc(${rIdx},'idx',this.value)" class="${inCls}" ${dis?'disabled':''}></td>
+                <td class="p-1 text-center"><input type="number" value="${t.alloc.tch}" oninput="syncAlloc(${rIdx},'tch',this.value)" class="${inCls}" ${dis?'disabled':''}></td>
+                <td class="p-1 text-center"><input type="number" value="${t.alloc.reit}" oninput="syncAlloc(${rIdx},'reit',this.value)" class="${inCls}" ${dis?'disabled':''}></td>
+                <td class="p-1 text-center"><input type="number" value="${t.alloc.bnd}" oninput="syncAlloc(${rIdx},'bnd',this.value)" class="${inCls}" ${dis?'disabled':''}></td>
+                <td class="p-1 text-center"><input type="number" value="${t.alloc.cry}" oninput="syncAlloc(${rIdx},'cry',this.value)" class="${inCls}" ${dis?'disabled':''}></td>
+                <td class="p-1 text-center"><input type="checkbox" class="w-4 h-4 rounded border-slate-300 custom-checkbox" ${t.vault==='roth'?'checked':''} ${s.year > 1 ? 'disabled' : ''} onchange="gameState['${currentPeriod}'].teams[${rIdx}].vault=this.checked?'roth':'trad'; gameState['${currentPeriod}'].teams[${rIdx}].balance=this.checked?80000:100000; gameState['${currentPeriod}'].teams[${rIdx}].lastBalance=this.checked?80000:100000; saveData(); render();"></td>
+                <td class="p-1 text-center"><button onclick="toggleReady(${rIdx})" class="${t.ready?'bg-emerald-600':'bg-slate-200'} text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase">${t.ready?'Un-Ready':'Ready'}</button></td>
+                <td class="p-1 text-center"><button onclick="removeTeam(${rIdx})" class="text-slate-300 hover:text-error"><svg class="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg></button></td></tr>`;
+        });
+    }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>
